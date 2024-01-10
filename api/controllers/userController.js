@@ -33,4 +33,96 @@ const createUser = asyncHandler(async (req, res) => {
   }
 });
 
-export { createUser };
+const loginUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  const exsistingUser = await User.findOne({ email });
+
+  if (exsistingUser) {
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      exsistingUser.password
+    );
+
+    if (isPasswordValid) {
+      createToken(res, exsistingUser._id);
+
+      res.status(200).json({
+        _id: exsistingUser._id,
+        username: exsistingUser.username,
+        email: exsistingUser.email,
+        isAdmin: exsistingUser.isAdmin,
+      });
+
+      return;
+    }
+  }
+
+  res.status(500).send("Invalid email or password.");
+});
+
+const logoutCurrentUser = asyncHandler(async (req, res) => {
+  res.cookie("jwt", "", {
+    httpOnly: true,
+    expires: new Date(0),
+  });
+
+  res.status(200).json({
+    message: "Logged out successfully.",
+  });
+});
+
+const getAllUsers = asyncHandler(async (req, res) => {
+  const users = await User.find({});
+  console.log(users);
+  res.status(200).json(users);
+});
+
+const getCurrentUserProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (user) {
+    res.status(200).json({
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+    });
+  } else {
+    res.status(404);
+    throw new Error("User not found.");
+  }
+});
+
+const updateCurrentUserProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (user) {
+    user.username = req.body.username || user.username;
+    user.email = req.body.username || user.email;
+
+    if (req.body.password) {
+      user.password = req.body.password;
+    }
+
+    const updatedUser = await user.save();
+
+    res.status(200).json({
+      _id: updatedUser._id,
+      username: updatedUser.username,
+      email: updatedUser.email,
+      isAdmin: updatedUser.isAdmin,
+    });
+  } else {
+    req.status(404);
+    throw new Error("User not found.");
+  }
+});
+
+export {
+  createUser,
+  loginUser,
+  logoutCurrentUser,
+  getAllUsers,
+  getCurrentUserProfile,
+  updateCurrentUserProfile,
+};
